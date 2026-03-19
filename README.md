@@ -14,6 +14,7 @@ env/
 
 - 📁 **Files are config:** Each file is one variable. The path is the name, the content is the value.
 - 🔀 **Smart path resolution:** Underscores become directories, or use `/` for explicit control.
+- 🎚️ **Two-layer registry:** System (shared) + local (project) — local values always win.
 - 🐚 **Shell integration:** Generate `export` statements for bash/zsh/fish — drop it into your rc file.
 - 🧹 **Zero dependencies:** Pure Python, nothing to install beyond the package itself.
 - 🔄 **Read, write, delete:** Full CRUD for your config with automatic directory cleanup.
@@ -31,7 +32,6 @@ from uregistry import load_env, get_env, set_env, delete_env, list_env, dump_she
 
 # Load all vars from env/ into os.environ
 load_env()
-load_env("path/to/env")
 
 # Read a single var (does not modify os.environ)
 model = get_env("AI_DEFAULT_MODEL")
@@ -51,6 +51,37 @@ all_vars = list_env()
 print(dump_shell())                    # bash/zsh format
 print(dump_shell(shell="fish"))        # fish format
 ```
+
+## System + Local Registry
+
+uregistry supports two layers: **system** (shared/global defaults) and **local** (project-specific overrides). Local values always take priority. Writes always go to local.
+
+```python
+# Load system defaults, then apply local overrides
+load_env(system_dir="/etc/myapp/env")
+
+# Same for reading — local wins over system
+model = get_env("AI_DEFAULT_MODEL", system_dir="/etc/myapp/env")
+
+# Writes always go to local registry
+set_env("AI_DEFAULT_MODEL", "gpt-4o", system_dir="/etc/myapp/env")
+
+# Delete from local — system value becomes visible again
+delete_env("AI_DEFAULT_MODEL")
+
+# List and dump merge both layers
+all_vars = list_env(system_dir="/etc/myapp/env")
+print(dump_shell(system_dir="/etc/myapp/env"))
+```
+
+```
+/etc/myapp/env/              (system)        ./env/                  (local)
+  AI/                                          AI/
+    DEFAULT_MODEL = "gpt-4o"                     DEFAULT_MODEL = "claude-sonnet-4-20250514"  ← wins
+    API_KEY = "sk-shared-..."                  DEBUG = "1"
+```
+
+If the system registry doesn't exist or `system_dir` is not specified — everything works with local only, same as before.
 
 ## Path Resolution
 
